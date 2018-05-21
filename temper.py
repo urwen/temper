@@ -22,6 +22,7 @@
 
 # Standard python3 modules
 import argparse
+import json
 import os
 import re
 import select
@@ -48,7 +49,7 @@ class Temper(object):
       with open(path, 'r') as fp:
         return fp.read().strip()
     except:
-      return None
+      return ''
 
   def _find_devices(self, dirname):
     devices = set()
@@ -64,7 +65,7 @@ class Temper(object):
 
   def _get_usb_device(self, dirname):
     vendorid = self._readfile(os.path.join(dirname, 'idVendor'))
-    if vendorid is None:
+    if vendorid == '':
       return None
     vendorid = int(vendorid, 16)
     productid = self._readfile(os.path.join(dirname, 'idProduct'))
@@ -88,18 +89,33 @@ class Temper(object):
             usb_devices.append(device)
     return usb_devices
 
-  def list(self):
+  def list(self, use_json=False, silent=False):
+    results = []
     for path, busnum, devnum, vendorid, productid, vendor_name, product_name, \
         devices in sorted(self.usb_devices,
                           key=lambda x: x[1] * 1000 + x[2]):
-      print('Bus %03d Dev %03d %04x:%04x %s %s %s' % (
-        busnum,
-        devnum,
-        vendorid,
-        productid,
-        '*' if self._is_known_id(vendorid, productid) else ' ',
-        product_name if product_name is not None else '???',
-        list(devices)))
+      d = dict()
+      d['path'] = path
+      d['busnum'] = busnum
+      d['devnum'] = devnum
+      d['vendorid'] = vendorid
+      d['productid'] = productid
+      d['vendor_name'] = vendor_name
+      d['product_name'] = product_name
+      d['devices'] = devices
+      results.append(d)
+      if not use_json and not silent:
+        print('Bus %03d Dev %03d %04x:%04x %s %s %s' % (
+          busnum,
+          devnum,
+          vendorid,
+          productid,
+          '*' if self._is_known_id(vendorid, productid) else ' ',
+          product_name if product_name != '' else '???',
+          list(devices)))
+    if use_json and not silent:
+      print(json.dumps(results, indent=4))
+    return results
 
   def _is_known_id(self, vendorid, productid):
     '''
@@ -139,7 +155,7 @@ class Temper(object):
       # inner-temperinner-humidityinterval
       # 32.73 [c]36.82 [%rh]1s
       #
-      # This program uses the mode where the LED is off or solid.
+      # This program uses the mode where the LED is either off or solid red.
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
       # firmware identifier: TEMPerX232_V2.0
@@ -270,19 +286,34 @@ class Temper(object):
     humidity = float(m.group(2))
     return ident, degC, degC * 1.8 + 32.0, humidity
 
-  def read(self):
+  def read(self, use_json=False, silent=False):
+    results = []
     for path, busnum, devnum, vendorid, productid, vendor_name, product_name, \
         devices in sorted(self.usb_devices,
                           key=lambda x: x[1] * 1000 + x[2]):
       if not self._is_known_id(vendorid, productid):
         continue
 
+      d = dict()
+      d['path'] = path
+      d['busnum'] = busnum
+      d['devnum'] = devnum
+      d['vendorid'] = vendorid
+      d['productid'] = productid
+      d['vendor_name'] = vendor_name
+      d['product_name'] = product_name
+      d['devices'] = devices
+
       if len(devices) == 0:
-        print('Bus %03d Dev %03d %04x:%04x Error: no hid/tty devices available'
-              % (busnum,
-                 devnum,
-                 vendorid,
-                 productid))
+        msg = 'no hid/tty devices available'
+        d['error'] = msg
+        results.append(d)
+        if not use_json and not silent:
+          print('Bus %03d Dev %03d %04x:%04x Error: %s' % (busnum,
+                                                           devnum,
+                                                           vendorid,
+                                                           productid,
+                                                           msg))
         continue
 
       device, degC, degF, humidity = None, None, None, None
@@ -295,35 +326,53 @@ class Temper(object):
       except Exception as exception:
         # In this case, a program using libusb probably asked the hidraw
         # driver to be unloaded. Or the device is not accessible.
-        print('Bus %03d Dev %03d %04x:%04x Error: %s' % (
-          busnum,
-          devnum,
-          vendorid,
-          productid,
-          str(exception)))
-      else:
-        print('Bus %03d Dev %03d %04x:%04x %s %.2fC %.2fF %.2f%%' % (
-          busnum,
-          devnum,
-          vendorid,
-          productid,
-          device if device is not None else 'unknown',
-          degC if degC is not None else 0,
-          degF if degF is not None else 0,
-          humidity if humidity is not None else 0))
+        d['error'] = str(exception)
+        results.append(d)
+        if not use_json and not silent:
+          print('Bus %03d Dev %03d %04x:%04x Error: %s' % (busnum,
+                                                           devnum,
+                                                           vendorid,
+                                                           productid,
+                                                           str(exception)))
+      s = ''
+      if device is not None:
+        d['ident'] = device
+        s += ' ' + device
+      if degC is not None:
+        d['celsius'] = degC
+        s += ' %.2fC' % degC
+      if degF is not None:
+        d['fahrenheit'] = degF
+        s += ' %.2fF' % degF
+      if humidity is not None:
+        d['humidity'] = humidity
+        s += ' %.2f%%' % humidity
+      results.append(d)
+      if not use_json and not silent:
+        print('Bus %03d Dev %03d %04x:%04x%s' % (busnum,
+                                                 devnum,
+                                                 vendorid,
+                                                 productid,
+                                                 s))
+    if use_json and not silent:
+      print(json.dumps(results, indent=4))
+    return results
 
   def main(self):
     parser = argparse.ArgumentParser(description='temper')
     parser.add_argument('-l', '--list', action='store_true',
                         help='List all USB devices')
+    parser.add_argument('--json', action='store_true',
+                        help='Provide output as JSON')
     parser.add_argument('--force', type=str,
                         help='Force the use of the hex id; ignore other ids',
                         metavar=('VENDOR_ID:PRODUCT_ID'))
     args = parser.parse_args()
 
     if args.list:
-      self.list()
+      self.list(args.json)
       return 0
+
     if args.force:
       ids = args.force.split(':')
       if len(ids) != 2:
@@ -338,7 +387,8 @@ class Temper(object):
       self.forced_vendor_id = vendor_id;
       self.forced_product_id = product_id;
 
-    self.read()
+    # By default, output the temperature and humidity for all known sensors.
+    self.read(args.json)
     return 0
 
 if __name__ == "__main__":

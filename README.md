@@ -50,3 +50,73 @@ the source code for details.
 
 Note also that if you try other software that uses libusb, the hidraw device
 may be disconnected. In this case, remove and re-insert the USB stick.
+
+## Example Command Output
+
+### Help
+
+  $ ./temper.py --help
+  usage: temper.py [-h] [-l] [--json] [--force VENDOR_ID:PRODUCT_ID]
+
+  temper
+
+  optional arguments:
+  -h, --help            show this help message and exit
+  -l, --list            List all USB devices
+  --json                Provide output as JSON
+  --force VENDOR_ID:PRODUCT_ID
+                        Force the use of the hex id; ignore other ids
+
+### List Devices
+
+In this example, one of the devices doesn't have the HID driver attached
+because I was using an libusb-based program to access it.
+
+  $ ./temper.py -l
+  Bus 001 Dev 023 413d:2107 * ??? ['hidraw0', 'hidraw1']
+  Bus 001 Dev 086 0c45:7401 * TEMPerV1.4 []
+  Bus 002 Dev 002 04d8:f5fe   TrueRNG ['ttyACM0']
+
+### Temperature
+
+In this example, one of the devices doesn't have the HID driver attached
+because I was using an libusb-based program to access it.
+
+  $ ./temper.py
+  Bus 001 Dev 023 413d:2107 TEMPerX_V3.1 26.55C 79.79F 43.41%
+  Bus 001 Dev 086 0c45:7401 Error: no hid/tty devices available
+
+  $ ./temper.py --json
+  [
+      {
+          "path": "/sys/bus/usb/devices/1-1.2",
+          "busnum": 1,
+          "devnum": 23,
+          "vendorid": 16701,
+          "productid": 8455,
+          "vendor_name": "",
+          "product_name": "",
+          "devices": [
+              "hidraw0",
+              "hidraw1"
+          ],
+          "ident": "TEMPerX_V3.1",
+          "celsius": 26.55,
+          "fahrenheit": 79.78999999999999,
+          "humidity": 43.65
+      },
+      {
+          "path": "/sys/bus/usb/devices/1-1.1.1",
+          "busnum": 1,
+          "devnum": 86,
+          "vendorid": 3141,
+          "productid": 29697,
+          "vendor_name": "RDing",
+          "product_name": "TEMPerV1.4",
+          "devices": [
+          ],
+          "error": "no hid/tty devices available"
+      }
+  ]
+
+Similar JSON output can be generated with the --list option.
