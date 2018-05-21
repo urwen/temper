@@ -40,11 +40,13 @@ class Temper(object):
 
   def __init__(self):
     self.usb_devices = self.get_usb_devices()
+    self.forced_vendor_id = None
+    self.forced_product_id = None
 
   def _readfile(self, path):
     try:
       with open(path, 'r') as fp:
-        return fp.read()
+        return fp.read().strip()
     except:
       return None
 
@@ -67,10 +69,13 @@ class Temper(object):
     vendorid = int(vendorid, 16)
     productid = self._readfile(os.path.join(dirname, 'idProduct'))
     productid = int(productid, 16)
+    vendor_name = self._readfile(os.path.join(dirname, 'manufacturer'))
+    product_name = self._readfile(os.path.join(dirname, 'product'))
     busnum = int(self._readfile(os.path.join(dirname, 'busnum')))
     devnum = int(self._readfile(os.path.join(dirname, 'devnum')))
     devices = sorted(self._find_devices(dirname))
-    return busnum, devnum, vendorid, productid, devices
+    return dirname, busnum, devnum, vendorid, productid, vendor_name, \
+      product_name, devices
 
   def get_usb_devices(self):
     usb_devices = []
@@ -84,20 +89,29 @@ class Temper(object):
     return usb_devices
 
   def list(self):
-    print(self.usb_devices)
-    for busnum, devnum, vendorid, productid, devices in self.usb_devices:
-      print('Bus %03d Dev %03d %04x:%04x %s%s' % (
+    for path, busnum, devnum, vendorid, productid, vendor_name, product_name, \
+        devices in sorted(self.usb_devices,
+                          key=lambda x: x[1] * 1000 + x[2]):
+      print('Bus %03d Dev %03d %04x:%04x %s %s %s' % (
         busnum,
         devnum,
         vendorid,
         productid,
-        'TEMPer ' if self._is_known_id(vendorid, productid) else '',
+        '*' if self._is_known_id(vendorid, productid) else ' ',
+        product_name if product_name is not None else '???',
         list(devices)))
 
   def _is_known_id(self, vendorid, productid):
     '''
     Returns True if the vendorid and product id are valid.
     '''
+    if self.forced_vendor_id is not None and \
+       self.forced_product_id is not None:
+      if self.forced_vendor_id == vendorid and \
+         self.forced_product_id == productid:
+        return True
+      return False
+
     if vendorid == 0x0c45 and productid == 0x7401:
       # firmware identifier: TEMPerF1.4
       #
@@ -250,44 +264,80 @@ class Temper(object):
     s.close()
 
     m = re.search(r'Temp-Inner:([0-9.]*).*, ?([0-9.]*)', reply)
+    if m is None:
+      raise Exception('Cannot parse temperature/humidity')
     degC = float(m.group(1))
     humidity = float(m.group(2))
     return ident, degC, degC * 1.8 + 32.0, humidity
 
   def read(self):
-    for busnum, devnum, vendorid, productid, devices in self.usb_devices:
+    for path, busnum, devnum, vendorid, productid, vendor_name, product_name, \
+        devices in sorted(self.usb_devices,
+                          key=lambda x: x[1] * 1000 + x[2]):
       if not self._is_known_id(vendorid, productid):
         continue
+
+      if len(devices) == 0:
+        print('Bus %03d Dev %03d %04x:%04x Error: no hid/tty devices available'
+              % (busnum,
+                 devnum,
+                 vendorid,
+                 productid))
+        continue
+
       device, degC, degF, humidity = None, None, None, None
       try:
-        device = devices[-1]
-        if device.startswith('hidraw'):
-          device, degC, degF, humidity = self._read_hidraw(device)
-        elif device.startswith('tty'):
-          device, degC, degF, humidity = self._read_serial(device)
-      except:
+        system_device = devices[-1]
+        if system_device.startswith('hidraw'):
+          device, degC, degF, humidity = self._read_hidraw(system_device)
+        elif system_device.startswith('tty'):
+          device, degC, degF, humidity = self._read_serial(system_device)
+      except Exception as exception:
         # In this case, a program using libusb probably asked the hidraw
-        # driver to be unloaded.
-        pass
-      print('Bus %03d Dev %03d %04x:%04x %s %.2fC %.2fF %.2f%%' % (
-        busnum,
-        devnum,
-        vendorid,
-        productid,
-        device if device is not None else 'unknown',
-        degC if degC is not None else 0,
-        degF if degF is not None else 0,
-        humidity if humidity is not None else 0))
+        # driver to be unloaded. Or the device is not accessible.
+        print('Bus %03d Dev %03d %04x:%04x Error: %s' % (
+          busnum,
+          devnum,
+          vendorid,
+          productid,
+          str(exception)))
+      else:
+        print('Bus %03d Dev %03d %04x:%04x %s %.2fC %.2fF %.2f%%' % (
+          busnum,
+          devnum,
+          vendorid,
+          productid,
+          device if device is not None else 'unknown',
+          degC if degC is not None else 0,
+          degF if degF is not None else 0,
+          humidity if humidity is not None else 0))
 
   def main(self):
     parser = argparse.ArgumentParser(description='temper')
     parser.add_argument('-l', '--list', action='store_true',
                         help='List all USB devices')
+    parser.add_argument('--force', type=str,
+                        help='Force the use of the hex id; ignore other ids',
+                        metavar=('VENDOR_ID:PRODUCT_ID'))
     args = parser.parse_args()
 
     if args.list:
       self.list()
       return 0
+    if args.force:
+      ids = args.force.split(':')
+      if len(ids) != 2:
+        print('Cannot parse hexadecimal id: %s' % args.force)
+        return 1
+      try:
+        vendor_id = int(ids[0], 16)
+        product_id = int(ids[1], 16)
+      except:
+        print('Cannot parse hexadecimal id: %s' % args.force)
+        return 1
+      self.forced_vendor_id = vendor_id;
+      self.forced_product_id = product_id;
+
     self.read()
     return 0
 
