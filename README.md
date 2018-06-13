@@ -38,27 +38,34 @@ module is available as a Debian package:
 
 ## Supported Devices
 
-I own three kinds of devices from PCsensors. These are all supported.
-Additional notes on how these devices behave can be found in the source code.
+I own five kinds of devices from PCsensors. These are all supported by
+temper.py.
 
-* 0c45:7401 TEMPerF1.4 Metal USB stick, temperature only
-* 413d:2107 TEMPerX_V3.1 White USB stick, temperature and humidity
-* 1a86:5523 TEMPerX232_V2.0 White USB stick, temperature and humidity
+In the following table "I" means the sensor is internal to the USB stick and
+"E" means the sensor is on a cable that is plugged into the USB stick.
 
-Note that 1a86:5523 may identify as 413d:2107 depending on button presses. See
-the source code for details.
+Product    |    Id     |  Firmware       | Temp | Hum | Notes
+-----------|-----------|-----------------|------|-----|---------------
+TEMPer     | 0c45:7401 | TEMPerF1.4      | I    |     | Metal
+TEMPerHUM  | 413d:2107 | TEMPerX_V3.1    | I    | I   | White plastic
+TEMPer2    | 413d:2107 | TEMPerX_V3.3    | I,E  |     | White plastic
+TEMPer1F   | 413d:2107 | ?               | E    |     | White plastic
+TEMPerX232 | 1a86:5523 | TEMPerX232_V2.0 | I,E  | I   | White plastic
 
-Note also that if you try other software that uses libusb, the hidraw device
-may be disconnected. In this case, remove and re-insert the USB stick.
+The 1a86:5523 device may identify as 413d:2107 depending on button presses,
+but it cannot be used successfully when in that mode.
 
-### 0c45:7401 TEMPerF1.4
+If you try other software that uses libusb, the hidraw device may be
+disconnected. In this case, remove and re-insert the USB stick.
+
+### TEMPer
 
 This is a metal USB stick marked "TEMPer" with thermometer logo on one side,
 and "TEMPer" on the other side. The end opposite the USB connector a screw
 hole. There is *no* humidity detector, but it appears water proof and I have
 submerged mine momentarily in ice water and in boiling water.
 
-### 413d:2107 TEMPerX_V3.1
+### TEMPerHUM
 
 This is a white plastic USB stick marked "TEMPerHUM", "-40C - +85C", and
 "0-100%RH"; with *blue button* marked "TXT". On the reverse, "PCsensor". This
@@ -76,13 +83,79 @@ type:inner-h2
 inner-temperinner-humidityinterval
 32.73 [c]36.82 [%rh]1s
 ```
-
 When the button is pressed again, the LED will either be off or be solid red.
 This is the mode that temper.py uses.
 
-### 1a86:5523 TEMPerX232_V2.0
+### TEMPer2
 
-physical description: White plastic USB stick marked "TEMPerX232", "0-100%RH",
+physical description: White plastic USB stick marked "TEMPer2", "-40C
+- +125C"; with red button marked "TXT". On the reverse, "PCsensor".
+This model has a jack for an external sensor on the end.
+
+notes: When the button is pressed, the red LED will blink as messages
+of the following form are sent (the temperature line repeats every
+second).
+
+Without an external sensor:
+```
+www.pcsensor.com
+temperx v3.3
+caps lock:on/off/++
+num lock:off/on/--
+type:inner-tx
+inner-tempinterval
+27.93 [c]1s
+```
+
+With an external sensor:
+```
+www.pcsensor.com
+temperx v3.3
+caps lock:on/off/++
+num lock:off/on/--
+type:inner-tx;outer-tx
+inner-tempintervalinterval
+27.18 [c]29.62 [c]1s
+```
+
+This program uses the mode where the LED is either off or solid red.
+
+### TEMPer1F
+
+White plastic USB stick marked "TEMPer1F", "-40C - +125C"; with pink button
+marked "TXT'. On the reverse, "PCsensor". This model has a jack for an
+external sensor and does *not* have an internal sensor.
+
+When the button is pressed, the red LED will blink as messages
+of the following form are sent (the temperature line repeats every 1
+second).
+
+Without the probe inserted:
+```
+www.pcsensor.com
+temperx v3.3
+caps lock:on/off/++
+num lock:off/on/--
+type:unknown
+1s
+```
+
+With the probe inserted:
+```
+www.pcsensor.com
+temperx v3.3
+caps lock:on/off/++
+num lock:off/on/--
+type:outer-tx
+outer-tempinterval
+24.93 [c]1s
+```
+
+This program uses the mode where the LED is either off or solid red.
+
+### TEMPerX232
+
+White plastic USB stick marked "TEMPerX232", "0-100%RH",
 and "-40 - +85C"; with a *green button* marked "press". On the reverse,
 "PCsensor". On the end opposite the USB connector, there is a jack for an
 external temperature sensor (which I do not have and did not try).

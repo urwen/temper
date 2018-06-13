@@ -22,12 +22,14 @@
 
 # Standard python3 modules
 import argparse
+import binascii
 import json
 import os
 import re
 import select
 import struct
 import sys
+import time
 
 # Non-standard modules
 try:
@@ -36,15 +38,17 @@ except:
   print('Cannot import "serial". Please sudo apt-get install python3-serial')
   sys.exit(1)
 
-class Temper(object):
+class USBList(object):
+  '''Get a list of all of the USB devices on a system, along with their
+  associated hidraw or serial (tty) devices.
+  '''
+
   SYSPATH = '/sys/bus/usb/devices'
 
-  def __init__(self):
-    self.usb_devices = self.get_usb_devices()
-    self.forced_vendor_id = None
-    self.forced_product_id = None
-
   def _readfile(self, path):
+    '''Read data from 'path' and return it as a string. Return the empty string
+    if the file does not exist, cannot be read, or has an error.
+    '''
     try:
       with open(path, 'r') as fp:
         return fp.read().strip()
@@ -52,6 +56,9 @@ class Temper(object):
       return ''
 
   def _find_devices(self, dirname):
+    '''Scan a directory hierarchy for names that start with "tty" or "hidraw".
+    Return these names in a set.
+    '''
     devices = set()
     with os.scandir(dirname) as it:
       for entry in it:
@@ -64,62 +71,194 @@ class Temper(object):
     return devices
 
   def _get_usb_device(self, dirname):
+    '''Examine the files in 'dirname', looking for files with well-known
+    names expected to be in the /sys hierarchy under Linux for USB devices.
+    Return a dictionary of the information gathered. If no information is found
+    (i.e., because the directory is not for a USB device) return None.
+    '''
+    info = dict()
     vendorid = self._readfile(os.path.join(dirname, 'idVendor'))
     if vendorid == '':
       return None
-    vendorid = int(vendorid, 16)
+    info['vendorid'] = int(vendorid, 16)
     productid = self._readfile(os.path.join(dirname, 'idProduct'))
-    productid = int(productid, 16)
-    vendor_name = self._readfile(os.path.join(dirname, 'manufacturer'))
-    product_name = self._readfile(os.path.join(dirname, 'product'))
-    busnum = int(self._readfile(os.path.join(dirname, 'busnum')))
-    devnum = int(self._readfile(os.path.join(dirname, 'devnum')))
-    devices = sorted(self._find_devices(dirname))
-    return dirname, busnum, devnum, vendorid, productid, vendor_name, \
-      product_name, devices
+    info['productid'] = int(productid, 16)
+    info['manufacturer'] = self._readfile(os.path.join(dirname,
+                                                       'manufacturer'))
+    info['product'] = self._readfile(os.path.join(dirname, 'product'))
+    info['busnum'] = int(self._readfile(os.path.join(dirname, 'busnum')))
+    info['devnum'] = int(self._readfile(os.path.join(dirname, 'devnum')))
+    info['devices'] = sorted(self._find_devices(dirname))
+    return info
 
   def get_usb_devices(self):
-    usb_devices = []
+    '''Scan a well-known Linux hierarchy in /sys and try to find all of the
+    USB devices on a system. Return these as a dictionary indexed by the path.
+    '''
+    info = dict()
     with os.scandir(Temper.SYSPATH) as it:
       for entry in it:
         if entry.is_dir():
-          device = self._get_usb_device(os.path.join(Temper.SYSPATH,
-                                                     entry.name))
+          path = os.path.join(Temper.SYSPATH, entry.name)
+          device = self._get_usb_device(path)
           if device is not None:
-            usb_devices.append(device)
-    return usb_devices
+            info[path] = device
+    return info
 
-  def list(self, use_json=False, silent=False):
-    results = []
-    for path, busnum, devnum, vendorid, productid, vendor_name, product_name, \
-        devices in sorted(self.usb_devices,
-                          key=lambda x: x[1] * 1000 + x[2]):
-      d = dict()
-      d['path'] = path
-      d['busnum'] = busnum
-      d['devnum'] = devnum
-      d['vendorid'] = vendorid
-      d['productid'] = productid
-      d['vendor_name'] = vendor_name
-      d['product_name'] = product_name
-      d['devices'] = devices
-      results.append(d)
-      if not use_json and not silent:
-        print('Bus %03d Dev %03d %04x:%04x %s %s %s' % (
-          busnum,
-          devnum,
-          vendorid,
-          productid,
-          '*' if self._is_known_id(vendorid, productid) else ' ',
-          product_name if product_name != '' else '???',
-          list(devices)))
-    if use_json and not silent:
-      print(json.dumps(results, indent=4))
-    return results
+class USBRead(object):
+  '''Read temperature and/or humidity information from a specified USB device.
+  '''
+  def __init__(self, device, verbose=False):
+    self.device = device
+    self.verbose = verbose
+
+  def _parse_bytes(self, name, offset, divisor, bytes, info):
+    '''Data is returned from several devices in a similar format. In the first
+    8 bytes, the internal sensors are returned in bytes 2 and 3 (temperature)
+    and in bytes 4 and 5 (humidity). In the second 8 bytes, external sensor
+    information is returned. If there are only external sensors, then only 8
+    bytes are returned, and the caller is expected to use the correct 'name'.
+    The caller is also expected to detect the firmware version and provide the
+    appropriate divisor, which is usually 100 or 256.
+
+    There is no return value. Instead 'info[name]' is update directly, if a
+    value is found.
+    '''
+    try:
+      if bytes[offset] == 0x4e and bytes[offset+1] == 0x20:
+        return
+    except:
+      return
+    try:
+      info[name] = struct.unpack_from('>h', bytes, offset)[0] / divisor
+    except:
+      return
+
+  def _read_hidraw(self, device):
+    '''Using the Linux hidraw device, send the special commands and receive the
+    raw data. Then call '_parse_bytes' based on the firmware version to provide
+    temperature and humidity information.
+
+    A dictionary of temperature and humidity info is returned.
+    '''
+    path = os.path.join('/dev', device)
+    fd = os.open(path, os.O_RDWR)
+
+    # Get firmware identifier
+    os.write(fd, struct.pack('8B', 0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0))
+    firmware = b''
+    while True:
+      r, _, _ = select.select([fd], [], [], 0.1)
+      if fd not in r:
+        break
+      data = os.read(fd, 8)
+      firmware += data
+
+    if firmware == b'':
+      os.close(fd)
+      return { 'error' : 'Cannot read firmware identifier from device' }
+    if self.verbose:
+      print('Firmware value: %s' % binascii.b2a_hex(firmware))
+
+    # Get temperature/humidity
+    os.write(fd, struct.pack('8B', 0x01, 0x80, 0x33, 0x01, 0, 0, 0, 0))
+    bytes = b''
+    while True:
+      r, _, _ = select.select([fd], [], [], 0.1)
+      if fd not in r:
+        break
+      data = os.read(fd, 8)
+      bytes += data
+
+    os.close(fd)
+    if self.verbose:
+      print('Data value: %s' % binascii.hexlify(bytes))
+
+    info = dict()
+    info['firmware'] = str(firmware, 'latin-1').strip()
+    info['hex_firmware'] = str(binascii.b2a_hex(firmware), 'latin-1')
+    info['hex_data'] = str(binascii.b2a_hex(bytes), 'latin-1')
+
+    if info['firmware'][:10] == 'TEMPerF1.4':
+      info['firmware'] = info['firmware'][:10]
+      self._parse_bytes('external temperature', 2, 256.0, bytes, info)
+      return info
+
+    if info['firmware'][:12] in [ 'TEMPerX_V3.1', 'TEMPerX_V3.3' ]:
+      info['firmware'] = info['firmware'][:12]
+      self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
+      self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
+      self._parse_bytes('external temperature', 10, 100.0, bytes, info)
+      self._parse_bytes('external humidity', 12, 100.0, bytes, info)
+      return info
+
+    return { 'error' : 'Unknown firmware %s: %s' % (info['firmware'],
+                                                    binascii.hexlify(bytes)) }
+
+  def _read_serial(self, device):
+    '''Using the Linux serial device, send the special commands and receive the
+    text data, which is parsed directly in this method.
+
+    A dictionary of device info (like that returned by USBList) combined with
+    temperature and humidity info is returned.
+    '''
+
+    path = os.path.join('/dev', device)
+    s = serial.Serial(path, 9600)
+    s.bytesize = serial.EIGHTBITS
+    s.parity = serial.PARITY_NONE
+    s.stopbits = serial.STOPBITS_ONE
+    s.timeout = 1
+    s.xonoff = False
+    s.rtscts = False
+    s.dsrdtr = False
+    s.writeTimeout = 0
+
+    # Send the "Version" command and save the reply.
+    s.write(b'Version')
+    firmware = str(s.readline(), 'latin-1').strip()
+
+    # Send the "ReadTemp" command and save the reply.
+    s.write(b'ReadTemp')
+    reply = str(s.readline(), 'latin-1').strip()
+    reply += str(s.readline(), 'latin-1').strip()
+    s.close()
+
+    info = dict()
+    info['firmware'] = firmware
+    m = re.search(r'Temp-Inner:([0-9.]*).*, ?([0-9.]*)', reply)
+    if m is not None:
+      info['internal temperature'] = float(m.group(1))
+      info['internal humidity'] = float(m.group(2))
+    m = re.search(r'Temp-Outer:([0-9.]*)', reply)
+    if m is not None:
+      info['external temperature'] = float(m.group(1))
+    return info
+
+  def read(self):
+    '''Read the firmware version, temperature, and humidity from the device and
+    return a dictionary containing these data.
+    '''
+
+    # Use the last device found
+    if self.device.startswith('hidraw'):
+      return self._read_hidraw(self.device)
+    if self.device.startswith('tty'):
+      return self._read_serial(self.device)
+    return { 'error' : 'No usable hid/tty devices available' }
+
+class Temper(object):
+  SYSPATH = '/sys/bus/usb/devices'
+
+  def __init__(self, verbose=False):
+    usblist = USBList()
+    self.usb_devices = usblist.get_usb_devices()
+    self.forced_vendor_id = None
+    self.forced_product_id = None
+    self.verbose = verbose
 
   def _is_known_id(self, vendorid, productid):
-    '''
-    Returns True if the vendorid and product id are valid.
+    '''Returns True if the vendorid and product id are valid.
     '''
     if self.forced_vendor_id is not None and \
        self.forced_product_id is not None:
@@ -129,236 +268,105 @@ class Temper(object):
       return False
 
     if vendorid == 0x0c45 and productid == 0x7401:
-      # firmware identifier: TEMPerF1.4
-      #
-      # physical description: Metal USB stick marked "TEMPer" with thermometer
-      # logo on one side, and "TEMPer" on the other side. The end has a screw
-      # hole.
-      #
-      # This model does not have a humidity device.
       return True
     if vendorid == 0x413d and productid == 0x2107:
-      # firmware identifier: TEMPerX_V3.1
-      #
-      # physical description: White plastic USB stick marked "TEMPerHUM",
-      # "-40C - +85C", "0-100%RH"; with blue button marked "TXT". On the
-      # reverse, "PCsensor". This model does not have a jack on the end.
-      #
-      # notes: When the button is pressed the red LED will blink as messages
-      # of the following are sent (the temperature line repeats every second).
-      #
-      # www.pcsensor.com
-      # temperx v3.1
-      # caps lock:on/off/++
-      # num lock:off/on/--
-      # type:inner-h2
-      # inner-temperinner-humidityinterval
-      # 32.73 [c]36.82 [%rh]1s
-      #
-      # This program uses the mode where the LED is either off or solid red.
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
-      # firmware identifier: TEMPerX232_V2.0
-      #
-      # physical description: White plastic USB stick marked "TEMPerX232",
-      # "0-100%RH", "-40 - +85C"; with a green button marked "press". On the
-      # reverse, "PCsensor". On the end, a jack for an external temperature
-      # sensor (which I do not have and did not try).
-      #
-      # notes: When the button is pressed and held down until the red LED is
-      # solid, a blue LED will flash every second. In this mode, the USB
-      # vendor:product is 413d:2107, but only one HID device is available, and
-      # protocol sent to the hidraw device is rejected with an error.
-      #
-      # When the LED is flashing blue, and the button is pressed momemtarily,
-      # the following are sent (the temperature line repeats every second).
-      #
-      # www.PCsensor.com
-      # TEMPerX232-V2.0
-      # type:inner-H2
-      # inner-temperinner-humidityinterval
-      # 30.48 [C]40.19 [%RH]1
-      #
-      # When the button is pressed and held down until the red LED is solid, a
-      # green LED will flash every second. This is the mode that this program
-      # uses. In this mode, if "Help" is sent to the serial device, the
-      # following will be sent back:
-      #
-      #    >>PCsensor<<
-      # Welcome to use TEMPerX232!
-      # Firmware Version:TEMPerX232_V2.0
-      # The command is:
-      #     ReadTemp                     -->read temperature,temp_value = sensor_value + calibration
-      #     ReadCalib                    -->read calibration
-      #     SetCalib-type:xx.x,xx.x>     -->set calibration, xx.x(-10.0~+10.0)
-      #     EraseFlash                   -->erase calibration
-      #     Version                      -->read firmware version
-      #     ReadType                     -->read the sensor type
-      #     ReadAlert-Temp               -->read temp alert value
-      #     SetTempUpperAlert-type:xx.xx>-->set temp upper alert value,xx.xx(-40.00~+85.00)
-      #     SetTempLowerAlert-type:xx.xx>-->set temp lower alert value,xx.xx(-40.00~+85.00)
-      #     ReadAlert-Hum                -->read hum alert value
-      #     SetHumUpperAlert-type:xx.xx> -->set hum upper alert value,xx.xx(00.00~99.99)
-      #     SetHumLowerAlert-type:xx.xx> -->set hum lower alert value,xx.xx(00.00~99.99)
-      #     SetMode-Temp:x>              -->set tempmode, x(0~1)
-      #     ReadMode-Temp                -->read tempmode
-      #     Help                         -->command help
-      #     ?                            -->command help
-      # The COM configuration is:
-      #     Mode:       ASCII
-      #     Baud Rate:  9600bps
-      #     Data Bit:   8
-      #     Parity Bit: None
-      #     Stop Bit:   1
-      # SHENZHEN RDing Tech CO.,LTD
-      # www.PCsensor.com
-      #
-      # If "ReadTemp" is sent, the replay is "Temp-Inner:30.53 [C],39.92 [%RH]<"
-      # If "Version" is sent, the reply is "TEMPerX232_V2.0"
-      # If "ReadType" is sent, the reply is "Type:Inner-H2"
-      # If "ReadMode-Temp" is sent, the reply is "TempMode:0"
-      # If "ReadCalib" is sent, the reply is:
-      #    Inner-Calib:0.0 [C],0.0 [%RH]
-      #    Outer-Calib:0.0 [C],0.0 [%RH]
       return True
 
     # The id is not known to this program.
     return False
 
-  def _read_hidraw(self, device):
-    path = os.path.join('/dev', device)
-    ident = b''
-    bytes = b''
-    fd = os.open(path, os.O_RDWR)
+  def list(self, use_json=False):
+    '''Print out a list all of the USB devices on the system. If 'use_json' is
+    True, then JSON formatting will be used.
+    '''
+    if use_json:
+      print(json.dumps(self.usb_devices, indent=4))
+      return
 
-    # Get identifier
-    os.write(fd, struct.pack('8B', 0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0))
-    while True:
-      r, _, _ = select.select([fd], [], [], 0.1)
-      if fd not in r:
-        break
-      data = os.read(fd, 8)
-      ident += data
+    for _, info in sorted(self.usb_devices.items(),
+                          key=lambda x: x[1]['busnum'] * 1000 + \
+                          x[1]['devnum']):
+      print('Bus %03d Dev %03d %04x:%04x %s %s %s' % (
+        info['busnum'],
+        info['devnum'],
+        info['vendorid'],
+        info['productid'],
+        '*' if self._is_known_id(info['vendorid'], info['productid']) else ' ',
+        info.get('product', '???'),
+        list(info['devices']) if len(info['devices']) > 0 else ''))
 
-    if ident == '':
-      return None
+  def read(self, verbose=False):
+    '''Read all of the known devices on the system and return a list of
+    dictionaries which contain the device information, firmware information,
+    and environmental information obtained. If there is an error, then the
+    'error' field in the dictionary will contain a string explaining the
+    error.
+    '''
 
-    # Get temperature
-    os.write(fd, struct.pack('8B', 0x01, 0x80, 0x33, 0x01, 0, 0, 0, 0))
-    while True:
-      r, _, _ = select.select([fd], [], [], 0.1)
-      if fd not in r:
-        break
-      data = os.read(fd, 8)
-      bytes += data
-
-    os.close(fd)
-    if ident[:10] == b'TEMPerF1.4':
-      degC = struct.unpack_from('>h', bytes, 2)[0] / 256.0
-      return str(ident[:10], 'latin-1'), degC, degC * 1.8 + 32.0, None
-
-    if ident[:12] == b'TEMPerX_V3.1':
-      degC = struct.unpack_from('>h', bytes, 2)[0] / 100.0
-      humidity = struct.unpack_from('>h', bytes, 4)[0] / 100.0
-      return str(ident[:12], 'latin-1'), degC, degC * 1.8 + 32.0, humidity
-
-  def _read_serial(self, device):
-    path = os.path.join('/dev', device)
-    s = serial.Serial(path, 9600)
-    s.bytesize = serial.EIGHTBITS
-    s.parity = serial.PARITY_NONE
-    s.stopbits = serial.STOPBITS_ONE
-    s.timeout = 2
-    s.xonoff = False
-    s.rtscts = False
-    s.dsrdtr = False
-    s.writeTimeout = 0
-    s.write(b'Version')
-    ident = str(s.readline(), 'latin-1').strip()
-    s.write(b'ReadTemp')
-    reply = str(s.readline(), 'latin-1').strip()
-    s.close()
-
-    m = re.search(r'Temp-Inner:([0-9.]*).*, ?([0-9.]*)', reply)
-    if m is None:
-      raise Exception('Cannot parse temperature/humidity')
-    degC = float(m.group(1))
-    humidity = float(m.group(2))
-    return ident, degC, degC * 1.8 + 32.0, humidity
-
-  def read(self, use_json=False, silent=False):
     results = []
-    for path, busnum, devnum, vendorid, productid, vendor_name, product_name, \
-        devices in sorted(self.usb_devices,
-                          key=lambda x: x[1] * 1000 + x[2]):
-      if not self._is_known_id(vendorid, productid):
+    for _, info in sorted(self.usb_devices.items(),
+                          key=lambda x: x[1]['busnum'] * 1000 + \
+                          x[1]['devnum']):
+      if not self._is_known_id(info['vendorid'], info['productid']):
         continue
-
-      d = dict()
-      d['path'] = path
-      d['busnum'] = busnum
-      d['devnum'] = devnum
-      d['vendorid'] = vendorid
-      d['productid'] = productid
-      d['vendor_name'] = vendor_name
-      d['product_name'] = product_name
-      d['devices'] = devices
-
-      if len(devices) == 0:
-        msg = 'no hid/tty devices available'
-        d['error'] = msg
-        results.append(d)
-        if not use_json and not silent:
-          print('Bus %03d Dev %03d %04x:%04x Error: %s' % (busnum,
-                                                           devnum,
-                                                           vendorid,
-                                                           productid,
-                                                           msg))
+      if len(info['devices']) == 0:
+        info['error'] = 'no hid/tty devices available'
+        results.append(info)
         continue
-
-      device, degC, degF, humidity = None, None, None, None
-      try:
-        system_device = devices[-1]
-        if system_device.startswith('hidraw'):
-          device, degC, degF, humidity = self._read_hidraw(system_device)
-        elif system_device.startswith('tty'):
-          device, degC, degF, humidity = self._read_serial(system_device)
-      except Exception as exception:
-        # In this case, a program using libusb probably asked the hidraw
-        # driver to be unloaded. Or the device is not accessible.
-        d['error'] = str(exception)
-        results.append(d)
-        if not use_json and not silent:
-          print('Bus %03d Dev %03d %04x:%04x Error: %s' % (busnum,
-                                                           devnum,
-                                                           vendorid,
-                                                           productid,
-                                                           str(exception)))
-      s = ''
-      if device is not None:
-        d['ident'] = device
-        s += ' ' + device
-      if degC is not None:
-        d['celsius'] = degC
-        s += ' %.2fC' % degC
-      if degF is not None:
-        d['fahrenheit'] = degF
-        s += ' %.2fF' % degF
-      if humidity is not None:
-        d['humidity'] = humidity
-        s += ' %.2f%%' % humidity
-      results.append(d)
-      if not use_json and not silent:
-        print('Bus %03d Dev %03d %04x:%04x%s' % (busnum,
-                                                 devnum,
-                                                 vendorid,
-                                                 productid,
-                                                 s))
-    if use_json and not silent:
-      print(json.dumps(results, indent=4))
+      usbread = USBRead(info['devices'][-1], verbose)
+      results.append({ **info, **usbread.read() })
     return results
 
+  def _add_temperature(self, name, info):
+    '''Helper method to add the temperature to a string in both Celsius and
+    Fahrenheit. If no sensor data is available, then '- -' will be returned.
+    '''
+    if name not in info:
+      return '- -'
+    degC = info[name]
+    degF = degC * 1.8 + 32.0
+    return '%.1fC %.1fF' % (degC, degF)
+
+  def _add_humidity(self, name, info):
+    '''Helper method to add the humidity to a string. If no sensor data is
+    available, then '-' will be returned.
+    '''
+
+    if name not in info:
+      return '-'
+    return '%d%%' % int(info[name])
+
+  def print(self, results, use_json=False):
+    '''Print out a list of all of the known USB sensor devices on the system.
+    If 'use_json' is True, then JSON formatting will be used.
+    '''
+
+    if use_json:
+      print(json.dumps(results, indent=4))
+      return
+
+    for info in results:
+      s = 'Bus %03d Dev %03d %04x:%04x %s' % (info['busnum'],
+                                              info['devnum'],
+                                              info['vendorid'],
+                                              info['productid'],
+                                              info['firmware'])
+      if 'error' in info:
+        s += ' Error: %s' % info['error']
+      else:
+        s += ' ' + self._add_temperature('internal temperature', info)
+        s += ' ' + self._add_humidity('internal humidity', info)
+        s += ' ' + self._add_temperature('external temperature', info)
+        s += ' ' + self._add_humidity('external humidity', info)
+      print(s)
+
   def main(self):
+    '''An example 'main' entry point that can be used to make temper.py a
+    standalone program.
+    '''
+
     parser = argparse.ArgumentParser(description='temper')
     parser.add_argument('-l', '--list', action='store_true',
                         help='List all USB devices')
@@ -367,7 +375,10 @@ class Temper(object):
     parser.add_argument('--force', type=str,
                         help='Force the use of the hex id; ignore other ids',
                         metavar=('VENDOR_ID:PRODUCT_ID'))
+    parser.add_argument('--verbose', action='store_true',
+                        help='Output binary data from thermometer')
     args = parser.parse_args()
+    self.verbose = args.verbose
 
     if args.list:
       self.list(args.json)
@@ -388,7 +399,8 @@ class Temper(object):
       self.forced_product_id = product_id;
 
     # By default, output the temperature and humidity for all known sensors.
-    self.read(args.json)
+    results = self.read(args.verbose)
+    self.print(results, args.json)
     return 0
 
 if __name__ == "__main__":
