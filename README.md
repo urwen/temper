@@ -49,7 +49,7 @@ Product    |    Id     |  Firmware       | Temp | Hum | Notes
 TEMPer     | 0c45:7401 | TEMPerF1.4      | I    |     | Metal
 TEMPerHUM  | 413d:2107 | TEMPerX_V3.1    | I    | I   | White plastic
 TEMPer2    | 413d:2107 | TEMPerX_V3.3    | I,E  |     | White plastic
-TEMPer1F   | 413d:2107 | ?               | E    |     | White plastic
+TEMPer1F   | 413d:2107 | TEMPerX_V3.3    | E    |     | White plastic
 TEMPerX232 | 1a86:5523 | TEMPerX232_V2.0 | I,E  | I   | White plastic
 
 The 1a86:5523 device may identify as 413d:2107 depending on button presses,
@@ -57,6 +57,9 @@ but it cannot be used successfully when in that mode.
 
 If you try other software that uses libusb, the hidraw device may be
 disconnected. In this case, remove and re-insert the USB stick.
+
+The TEMPer1F has only an external sensor, but it is not possible to detect
+that it is external, so it is reported as an internal temperature.
 
 ### TEMPer
 
