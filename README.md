@@ -91,8 +91,8 @@ This is the mode that temper.py uses.
 
 ### TEMPer2
 
-physical description: White plastic USB stick marked "TEMPer2", "-40C
-- +125C"; with red button marked "TXT". On the reverse, "PCsensor".
+physical description: White plastic USB stick marked "TEMPer2",
+"-40C - +125C"; with red button marked "TXT". On the reverse, "PCsensor".
 This model has a jack for an external sensor on the end.
 
 notes: When the button is pressed, the red LED will blink as messages
@@ -215,7 +215,7 @@ www.PCsensor.com
 ```
 
 This is the mode that temper.py uses. I was not successful getting this device
-to respond to any commands sent via the HID device. 
+to respond to any commands sent via the HID device.
 
 I initially had trouble getting a reply to ReadTemp when using a terminal
 program (e.g., cu), but the example in the temper.py works without any
