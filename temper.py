@@ -29,7 +29,6 @@ import re
 import select
 import struct
 import sys
-import time
 
 # Non-standard modules
 try:
@@ -37,6 +36,7 @@ try:
 except:
   print('Cannot import "serial". Please sudo apt-get install python3-serial')
   sys.exit(1)
+
 
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
@@ -182,6 +182,11 @@ class USBRead(object):
       self._parse_bytes('internal temperature', 2, 256.0, bytes, info)
       return info
 
+    if info['firmware'][:15] == 'TEMPerGold_V3.1':
+      info['firmware'] = info['firmware'][:15]
+      self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
+      return info
+
     if info['firmware'][:12] in [ 'TEMPerX_V3.1', 'TEMPerX_V3.3' ]:
       info['firmware'] = info['firmware'][:12]
       self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
@@ -190,8 +195,10 @@ class USBRead(object):
       self._parse_bytes('external humidity', 12, 100.0, bytes, info)
       return info
 
-    return { 'error' : 'Unknown firmware %s: %s' % (info['firmware'],
-                                                    binascii.hexlify(bytes)) }
+    info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
+                                                 binascii.hexlify(bytes))
+    return info
+
 
   def _read_serial(self, device):
     '''Using the Linux serial device, send the special commands and receive the
@@ -403,6 +410,7 @@ class Temper(object):
     results = self.read(args.verbose)
     self.print(results, args.json)
     return 0
+
 
 if __name__ == "__main__":
   temper = Temper()
