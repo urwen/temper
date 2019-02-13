@@ -33,7 +33,7 @@ import sys
 # Non-standard modules
 try:
   import serial
-except:
+except ImportError:
   print('Cannot import "serial". Please sudo apt-get install python3-serial')
   sys.exit(1)
 
@@ -199,7 +199,6 @@ class USBRead(object):
                                                  binascii.hexlify(bytes))
     return info
 
-
   def _read_serial(self, device):
     '''Using the Linux serial device, send the special commands and receive the
     text data, which is parsed directly in this method.
@@ -247,13 +246,12 @@ class USBRead(object):
     '''Read the firmware version, temperature, and humidity from the device and
     return a dictionary containing these data.
     '''
-
     # Use the last device found
     if self.device.startswith('hidraw'):
       return self._read_hidraw(self.device)
     if self.device.startswith('tty'):
       return self._read_serial(self.device)
-    return { 'error' : 'No usable hid/tty devices available' }
+    return {'error': 'No usable hid/tty devices available'}
 
 class Temper(object):
   SYSPATH = '/sys/bus/usb/devices'
@@ -312,7 +310,6 @@ class Temper(object):
     'error' field in the dictionary will contain a string explaining the
     error.
     '''
-
     results = []
     for _, info in sorted(self.usb_devices.items(),
                           key=lambda x: x[1]['busnum'] * 1000 + \
@@ -360,7 +357,7 @@ class Temper(object):
                                               info['devnum'],
                                               info['vendorid'],
                                               info['productid'],
-                                              info['firmware'])
+                                              info.get('firmware'))
       if 'error' in info:
         s += ' Error: %s' % info['error']
       else:
