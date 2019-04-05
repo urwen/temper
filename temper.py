@@ -60,13 +60,14 @@ class USBList(object):
     Return these names in a set.
     '''
     devices = set()
-    for entry in os.scandir(dirname):
-        if entry.is_dir() and not entry.is_symlink():
-          devices |= self._find_devices(os.path.join(dirname, entry.name))
-        if re.search('tty.*[0-9]', entry.name):
-          devices.add(entry.name)
-        if re.search('hidraw[0-9]', entry.name):
-          devices.add(entry.name)
+    for entry in os.listdir(dirname):
+        path = os.path.join(dirname, entry)
+        if os.path.isdir(path) and not os.path.islink(path):
+          devices |= self._find_devices(path)
+        if re.search('tty.*[0-9]', entry):
+          devices.add(entry)
+        if re.search('hidraw[0-9]', entry):
+          devices.add(entry)
     return devices
 
   def _get_usb_device(self, dirname):
@@ -95,9 +96,9 @@ class USBList(object):
     USB devices on a system. Return these as a dictionary indexed by the path.
     '''
     info = dict()
-    for entry in os.scandir(Temper.SYSPATH):
-        if entry.is_dir():
-          path = os.path.join(Temper.SYSPATH, entry.name)
+    for entry in os.listdir(Temper.SYSPATH):
+        path = os.path.join(Temper.SYSPATH, entry)
+        if os.path.isdir(path):
           device = self._get_usb_device(path)
           if device is not None:
             info[path] = device
@@ -321,7 +322,12 @@ class Temper(object):
         results.append(info)
         continue
       usbread = USBRead(info['devices'][-1], verbose)
-      results.append({ **info, **usbread.read() })
+      r = {}
+      for k, v in info.items():
+          r[k] = v
+      for k, v in usbread.read().items():
+          r[k] = v
+      results.append(r)
     return results
 
   def _add_temperature(self, name, info):
