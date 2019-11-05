@@ -100,6 +100,7 @@ class USBList(object):
           path = os.path.join(Temper.SYSPATH, entry.name)
           device = self._get_usb_device(path)
           if device is not None:
+            device['port'] = entry.name
             info[path] = device
     return info
 
