@@ -133,6 +133,38 @@ class USBRead(object):
     except:
       return
 
+  def _read_hidraw_firmware(self, fd, verbose = False):
+    ''' Get firmware identifier'''
+    query = struct.pack('8B', 0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0)
+    if verbose:
+      print('Firmware query: %s' % binascii.b2a_hex(query))
+
+    # Sometimes we don't get all of the expected information from the
+    # device.  We'll retry a few times and hope for the best.
+    # See: https://github.com/urwen/temper/issues/9
+    for i in range(0, 10):
+      os.write(fd, query)
+
+      firmware = b''
+      while True:
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if fd not in r:
+          break
+        data = os.read(fd, 8)
+        firmware += data
+
+      if not len(firmware):
+        os.close(fd)
+        raise RuntimeError('Cannot read device firmware identifier')
+
+      if len(firmware) > 8:
+        break
+
+    if verbose:
+      print('Firmware value: %s %s' %(binascii.b2a_hex(firmware), firmware.decode()))
+
+    return firmware
+
   def _read_hidraw(self, device):
     '''Using the Linux hidraw device, send the special commands and receive the
     raw data. Then call '_parse_bytes' based on the firmware version to provide
@@ -143,21 +175,7 @@ class USBRead(object):
     path = os.path.join('/dev', device)
     fd = os.open(path, os.O_RDWR)
 
-    # Get firmware identifier
-    os.write(fd, struct.pack('8B', 0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0))
-    firmware = b''
-    while True:
-      r, _, _ = select.select([fd], [], [], 0.1)
-      if fd not in r:
-        break
-      data = os.read(fd, 8)
-      firmware += data
-
-    if firmware == b'':
-      os.close(fd)
-      return { 'error' : 'Cannot read firmware identifier from device' }
-    if self.verbose:
-      print('Firmware value: %s' % binascii.b2a_hex(firmware))
+    firmware = self._read_hidraw_firmware(fd, self.verbose)
 
     # Get temperature/humidity
     os.write(fd, struct.pack('8B', 0x01, 0x80, 0x33, 0x01, 0, 0, 0, 0))
