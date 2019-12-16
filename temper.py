@@ -29,7 +29,6 @@ import re
 import select
 import struct
 import sys
-from time import sleep
 from warnings import warn
 
 # Non-standard modules
@@ -151,14 +150,8 @@ class USBRead(object):
     os.write(fd, struct.pack('8B', 0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0))
     firmware = b''
 
-    # Hardware Quirk:
-    # This hardware is sluggish to respond, or some other race condition
-    # exists.  This works around that.
-    if self.vendorid == 0x413d and self.productid == 0x2107:
-      sleep(0.1)  # 0.05 isn't enough!  Hardware is made of glue and spit.
-
     while True:
-      r, _, _ = select.select([fd], [], [], 0.1)
+      r, _, _ = select.select([fd], [], [], 0.2)
       if fd not in r:
         break
       data = os.read(fd, 8)
