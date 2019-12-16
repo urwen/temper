@@ -29,6 +29,8 @@ import re
 import select
 import struct
 import sys
+from time import sleep
+from warnings import warn
 
 # Non-standard modules
 try:
@@ -103,12 +105,15 @@ class USBList(object):
             info[path] = device
     return info
 
+
 class USBRead(object):
   '''Read temperature and/or humidity information from a specified USB device.
   '''
-  def __init__(self, device, verbose=False):
+  def __init__(self, device, verbose=False, vendorid=None, productid=None):
     self.device = device
     self.verbose = verbose
+    self.vendorid = vendorid
+    self.productid = productid
 
   def _parse_bytes(self, name, offset, divisor, bytes, info):
     '''Data is returned from several devices in a similar format. In the first
@@ -145,6 +150,13 @@ class USBRead(object):
     # Get firmware identifier
     os.write(fd, struct.pack('8B', 0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0))
     firmware = b''
+
+    # Hardware Quirk:
+    # This hardware is sluggish to respond, or some other race condition
+    # exists.  This works around that.
+    if self.vendorid == 0x413d and self.productid == 0x2107:
+      sleep(0.1)  # 0.05 isn't enough!  Hardware is made of glue and spit.
+
     while True:
       r, _, _ = select.select([fd], [], [], 0.1)
       if fd not in r:
@@ -186,6 +198,16 @@ class USBRead(object):
       info['firmware'] = info['firmware'][:15]
       self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
       return info
+
+    # Hardware Quirk:
+    # Sometimes, this hardware returns only the version from the firmware
+    # string.  All other info appears valid.
+    if self.vendorid == 0x413d and self.productid == 0x2107 \
+        and info['firmware'][:4] == 'V3.3':
+      info['warning'] = "Ignoring wrong firmware V3.3, using TEMPerX_V3.3"
+      warn(info['warning'], stacklevel=99999999)
+      info['firmware'] = 'TEMPerX_V3.3'
+      info['hex_firmware'] = '54454d506572585f56332e3320202020'
 
     if info['firmware'][:12] in [ 'TEMPerX_V3.1', 'TEMPerX_V3.3' ]:
       info['firmware'] = info['firmware'][:12]
@@ -307,8 +329,8 @@ class Temper(object):
     '''Read all of the known devices on the system and return a list of
     dictionaries which contain the device information, firmware information,
     and environmental information obtained. If there is an error, then the
-    'error' field in the dictionary will contain a string explaining the
-    error.
+    'error' field in the dictionary will be present, and contain a string
+    explaining the error.
     '''
     results = []
     for _, info in sorted(self.usb_devices.items(),
@@ -320,7 +342,8 @@ class Temper(object):
         info['error'] = 'no hid/tty devices available'
         results.append(info)
         continue
-      usbread = USBRead(info['devices'][-1], verbose)
+      usbread = USBRead(info['devices'][-1], verbose, info['vendorid'], 
+                        info['productid'])
       results.append({ **info, **usbread.read() })
     return results
 
