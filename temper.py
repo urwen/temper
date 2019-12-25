@@ -146,7 +146,7 @@ class USBRead(object):
 
       firmware = b''
       while True:
-        r, _, _ = select.select([fd], [], [], 0.1)
+        r, _, _ = select.select([fd], [], [], 0.2)
         if fd not in r:
           break
         data = os.read(fd, 8)
