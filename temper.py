@@ -332,7 +332,7 @@ class Temper(object):
       return '- -'
     degC = info[name]
     degF = degC * 1.8 + 32.0
-    return '%.1fC %.1fF' % (degC, degF)
+    return '%.2fC %.2fF' % (degC, degF)
 
   def _add_humidity(self, name, info):
     '''Helper method to add the humidity to a string. If no sensor data is
