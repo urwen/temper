@@ -1,6 +1,6 @@
 # temper.py
 
-The USB temperature and temperature/humidity sensors sold my PCsensor are
+The USB temperature and temperature/humidity sensors sold by PCsensor are
 widely available from the parent site
 (http://pcsensor.com/usb-temperature-humidity.html), from Amazon, and from
 EBay.
@@ -65,7 +65,7 @@ that it is external, so it is reported as an internal temperature.
 ### TEMPer
 
 This is a metal USB stick marked "TEMPer" with thermometer logo on one side,
-and "TEMPer" on the other side. The end opposite the USB connector a screw
+and "TEMPer" on the other side. The end opposite the USB connector has a screw
 hole. There is *no* humidity detector, but it appears water proof and I have
 submerged mine momentarily in ice water and in boiling water.
 
@@ -169,7 +169,7 @@ LED will flash every second. In this mode, the USB vendor:product changes to
 413d:2107, but only one HID device is available, and protocol sent to the
 hidraw device is rejected with an error.
 
-When the LED is flashing blue, and the button is pressed momemtarily,
+When the LED is flashing blue, and the button is pressed momentarily,
 the following are sent (the temperature line repeats every second).
 
 ```
@@ -220,7 +220,7 @@ to respond to any commands sent via the HID device.
 
 I initially had trouble getting a reply to ReadTemp when using a terminal
 program (e.g., cu), but the example in the temper.py works without any
-problems, perhaps because no newline is sent after the comment.
+problems, perhaps because no newline is sent after the command.
 
 ## Example Command Output
 
