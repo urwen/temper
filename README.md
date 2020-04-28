@@ -299,3 +299,23 @@ $ ./temper.py --json
 ```
 
 Similar JSON output can be generated with the --list option.
+
+## Container
+
+The Dockerfile can be used in order to build a container to run `temper.py`:
+
+```
+docker build . --tag myuser/temper:latest
+```
+
+Then it can be executed as:
+
+```
+docker run --rm --privileged myuser/temper:latest
+```
+
+or using the device directly to avoid running the container as privileged:
+
+```
+docker run --rm --device=/dev/hidraw1 myuser/temper:latest
+```
