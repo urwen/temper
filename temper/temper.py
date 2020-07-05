@@ -29,14 +29,7 @@ import re
 import select
 import struct
 import sys
-
-# Non-standard modules
-try:
-  import serial
-except ImportError:
-  print('Cannot import "serial". Please sudo apt-get install python3-serial')
-  sys.exit(1)
-
+import serial
 
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
@@ -321,7 +314,7 @@ class Temper(object):
         info.get('product', '???'),
         list(info['devices']) if len(info['devices']) > 0 else ''))
 
-  def read(self, verbose=False):
+  def read(self, verbose=False, ):
     '''Read all of the known devices on the system and return a list of
     dictionaries which contain the device information, firmware information,
     and environmental information obtained. If there is an error, then the
