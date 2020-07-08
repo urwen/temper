@@ -29,14 +29,7 @@ import re
 import select
 import struct
 import sys
-
-# Non-standard modules
-try:
-  import serial
-except ImportError:
-  print('Cannot import "serial". Please sudo apt-get install python3-serial')
-  sys.exit(1)
-
+import serial
 
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
@@ -427,6 +420,9 @@ class Temper(object):
     return 0
 
 
-if __name__ == "__main__":
+def main():
   temper = Temper()
-  sys.exit(temper.main())
+  return temper.main()
+
+if __name__ == "__main__":
+  sys.exit(main())

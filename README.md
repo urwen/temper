@@ -18,7 +18,7 @@ sensors and do nothing else, given the following constraints:
 
 ### libusb is not used
 
-I tried to use libusb (apt-get install python3-usb; "import usb.core") and it
+I tried to use libusb (`apt-get install python3-usb; "import usb.core"`) and it
 provides a sophisticated interface to USB devices that was very nice.
 Unfortunately, I have one thermometer that didn't work with raw usb and that
 required access via the hidraw device; and I have another thermometer that has
@@ -26,16 +26,20 @@ an undocumented HID protocol, but that is accessible via a serial tty.
 
 ### hid and hidapi are not used
 
-I tried using hid (apt-get install python3-hid) and hidapi (apt-get install
-python3-hidapi) and these worked ok for two of the thermometers I have, but
+I tried using hid (`apt-get install python3-hid`) and hidapi (`apt-get install
+python3-hidapi`) and these worked ok for two of the thermometers I have, but
 not for the one that requires access via a serial tty.
 
 ### pySerial is used
 
 Although HID devices are accessed directly, pySerial is used for TTYs. This
-module is available as a Debian package:
-  sudo apt-get install python3-serial
+package has pyserial as a dependency.
 
+Alternatively, this module is available as a Debian package:
+
+```
+  sudo apt-get install python3-serial
+```
 ## Supported Devices
 
 I own five kinds of devices from PCsensors. These are all supported by
