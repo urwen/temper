@@ -447,6 +447,9 @@ class Temper(object):
     return 0
 
 
-if __name__ == "__main__":
+def main():
   temper = Temper()
   sys.exit(temper.main())
+
+if __name__ == "__main__":
+  main()
