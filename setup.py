@@ -17,6 +17,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/ccwienk/temper',
     py_modules=['temper'],
+    install_requires=['pyserial'],
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
