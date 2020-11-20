@@ -10,7 +10,7 @@ with open(os.path.join(own_dir, 'README.md')) as f:
 
 setuptools.setup(
     name='temper-py',
-    version='0.0.1',
+    version='0.0.2',
     author='urwen',
     description='Reads temperature data from misc. "TEMPer" devices with minimal dependencies',
     long_description=long_description,
