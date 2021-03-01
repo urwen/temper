@@ -195,7 +195,7 @@ class USBRead(object):
     info['hex_firmware'] = str(binascii.b2a_hex(firmware), 'latin-1')
     info['hex_data'] = str(binascii.b2a_hex(bytes), 'latin-1')
 
-    if info['firmware'][:10] == 'TEMPerF1.4':
+    if info['firmware'][:10] in [ 'TEMPerF1.4', 'TEMPer1F1.' ]:
       info['firmware'] = info['firmware'][:10]
       self._parse_bytes('internal temperature', 2, 256.0, bytes, info)
       return info
