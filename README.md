@@ -44,14 +44,15 @@ temper.py.
 In the following table "I" means the sensor is internal to the USB stick and
 "E" means the sensor is on a cable that is plugged into the USB stick.
 
-Product    |    Id     |  Firmware       | Temp | Hum | Notes
------------|-----------|-----------------|------|-----|---------------
-TEMPer     | 0c45:7401 | TEMPerF1.4      | I    |     | Metal
-TEMPer     | 413d:2107 | TEMPerGold_V3.1 | I    |     | Metal
-TEMPerHUM  | 413d:2107 | TEMPerX_V3.1    | I    | I   | White plastic
-TEMPer2    | 413d:2107 | TEMPerX_V3.3    | I,E  |     | White plastic
-TEMPer1F   | 413d:2107 | TEMPerX_V3.3    | E    |     | White plastic
-TEMPerX232 | 1a86:5523 | TEMPerX232_V2.0 | I,E  | I   | White plastic
+Product     |    Id     |  Firmware        | Temp | Hum | Notes
+------------|-----------|------------------|------|-----|---------------
+TEMPer      | 0c45:7401 | TEMPerF1.4       | I    |     | Metal
+TEMPer      | 413d:2107 | TEMPerGold_V3.1  | I    |     | Metal
+TEMPerHUM   | 413d:2107 | TEMPerX_V3.1     | I    | I   | White plastic
+TEMPer2     | 413d:2107 | TEMPerX_V3.3     | I,E  |     | White plastic
+TEMPer1F    | 413d:2107 | TEMPerX_V3.3     | E    |     | White plastic
+TEMPerX232  | 1a86:5523 | TEMPerX232_V2.0  | I,E  | I   | White plastic
+TEMPer1V1.1 | 0c45:7401 | TEMPer1F1.1Per1F | E    |     | Metal
 
 The 1a86:5523 device may identify as 413d:2107 depending on button presses,
 but it cannot be used successfully when in that mode.
