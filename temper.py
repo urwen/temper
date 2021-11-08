@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # temper.py -*-python-*-
-# Copyright 2018 by Pham Urwen (urwen@mail.ru)
+# Copyright 2021 by Shaun McCloud
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -34,7 +34,7 @@ import sys
 try:
   import serial
 except ImportError:
-  print('Cannot import "serial". Please sudo apt-get install python3-serial')
+  print('Cannot import "serial". Please run sudo apt-get install python3-serial or run pip3 install serial')
   sys.exit(1)
 
 try:
