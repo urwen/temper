@@ -37,6 +37,16 @@ except ImportError:
   print('Cannot import "serial". Please sudo apt-get install python3-serial')
   sys.exit(1)
 
+try:
+  import paho.mqtt.client as mqtt
+except ImportError:
+  print('Cannot import "paho.mqtt.client".  Please run pip3 install paho.mqtt')
+  sys.exit(1)
+
+MQTT_HOST = "CHANGEME"
+MQTT_PORT = 1883
+MQTT_KEEPALIVE_INTERVAL = 45
+MQTT_TOPIC = "CHANGEME"
 
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
@@ -218,6 +228,11 @@ class USBRead(object):
       self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
       self._parse_bytes('external temperature', 10, 100.0, bytes, info)
       self._parse_bytes('external humidity', 12, 100.0, bytes, info)
+      mqttc = mqtt.Client()
+      mqttc.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
+      mqttc.publish(MQTT_TOPIC + "/humidity",str(info['internal humidity']), qos=0, retain=True)
+      mqttc.publish(MQTT_TOPIC + "/temperature",str(round(info['internal temperature'] * 1.8 + 32, 2)), qos=0, retain=True)
+      mqttc.disconnect()
       return info
 
     info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
