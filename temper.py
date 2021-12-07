@@ -231,6 +231,11 @@ class USBRead(object):
       h = -6 + 125.0 * h / 65536
       info['internal humidity'] = h
       return info
+    if info['firmware'][:16] == 'TEMPer2_M12_V1.3':
+      info['firmware'] = info['firmware'][:16]
+      self._parse_bytes('internal temperature', 2, 256.0, bytes, info)
+      self._parse_bytes('external temperature', 4, 256.0, bytes, info)
+      return info
     info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
                                                  binascii.hexlify(bytes))
     return info
