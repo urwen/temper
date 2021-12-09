@@ -48,6 +48,7 @@ Product    |    Id     |  Firmware       | Temp | Hum | Notes
 -----------|-----------|-----------------|------|-----|---------------
 TEMPer     | 0c45:7401 | TEMPerF1.4      | I    |     | Metal
 TEMPer     | 413d:2107 | TEMPerGold_V3.1 | I    |     | Metal
+TEMPer     | 0409:0059 | TEMPerGold_V3.3 | I    |     | Metal
 TEMPerHUM  | 413d:2107 | TEMPerX_V3.1    | I    | I   | White plastic
 TEMPer2    | 413d:2107 | TEMPerX_V3.3    | I,E  |     | White plastic
 TEMPer1F   | 413d:2107 | TEMPerX_V3.3    | E    |     | White plastic
