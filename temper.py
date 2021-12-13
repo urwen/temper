@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # temper.py -*-python-*-
-# Copyright 2018 by Pham Urwen (urwen@mail.ru)
+# Copyright 2021 by Shaun McCloud
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -34,9 +34,19 @@ import sys
 try:
   import serial
 except ImportError:
-  print('Cannot import "serial". Please sudo apt-get install python3-serial')
+  print('Cannot import "serial". Please run sudo apt-get install python3-serial or run pip3 install serial')
   sys.exit(1)
 
+try:
+  import paho.mqtt.client as mqtt
+except ImportError:
+  print('Cannot import "paho.mqtt.client".  Please run pip3 install paho.mqtt')
+  sys.exit(1)
+
+MQTT_HOST = "CHANGEME"
+MQTT_PORT = 1883
+MQTT_KEEPALIVE_INTERVAL = 45
+MQTT_TOPIC = "CHANGEME"
 
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
@@ -213,6 +223,18 @@ class USBRead(object):
       self._parse_bytes('external humidity', 12, 100.0, bytes, info)
       return info
 
+    if info['firmware'] in ['TEMPerHUM_V3.8']:
+      self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
+      self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
+      self._parse_bytes('external temperature', 10, 100.0, bytes, info)
+      self._parse_bytes('external humidity', 12, 100.0, bytes, info)
+      mqttc = mqtt.Client()
+      mqttc.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
+      mqttc.publish(MQTT_TOPIC + "/humidity",str(info['internal humidity']), qos=0, retain=True)
+      mqttc.publish(MQTT_TOPIC + "/temperature",str(round(info['internal temperature'] * 1.8 + 32, 2)), qos=0, retain=True)
+      mqttc.disconnect()
+      return info
+
     info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
                                                  binascii.hexlify(bytes))
     return info
@@ -296,6 +318,8 @@ class Temper(object):
     if vendorid == 0x413d and productid == 0x2107:
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
+      return True
+    if vendorid == 0x1a86 and productid == 0xe025:
       return True
 
     # The id is not known to this program.
