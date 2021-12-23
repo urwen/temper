@@ -297,7 +297,7 @@ class Temper(object):
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
       return True
-    if vendorid == 0x0409 and productid == 0x0059:
+    if vendorid == 0x1a86 and productid == 0xe025:
       return True
 
     # The id is not known to this program.
