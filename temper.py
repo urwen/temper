@@ -418,8 +418,8 @@ class Temper(object):
       except:
         print('Cannot parse hexadecimal id: %s' % args.force)
         return 1
-      self.forced_vendor_id = vendor_id;
-      self.forced_product_id = product_id;
+      self.forced_vendor_id = vendor_id
+      self.forced_product_id = product_id
 
     # By default, output the temperature and humidity for all known sensors.
     results = self.read(args.verbose)
