@@ -110,7 +110,7 @@ class USBRead(object):
     self.device = device
     self.verbose = verbose
 
-  def _parse_bytes(self, name, offset, divisor, bytes, info):
+  def _parse_bytes(self, name, offset, divisor, bytes, info, verbose = False):
     '''Data is returned from several devices in a similar format. In the first
     8 bytes, the internal sensors are returned in bytes 2 and 3 (temperature)
     and in bytes 4 and 5 (humidity). In the second 8 bytes, external sensor
@@ -128,6 +128,9 @@ class USBRead(object):
     except:
       return
     try:
+    # Big endian, short (signed) integer (2 Bytes)
+      if verbose:
+        print('Converted value: %s' % binascii.hexlify(bytes[offset:offset+2]))
       info[name] = struct.unpack_from('>h', bytes, offset)[0] / divisor
     except:
       return
@@ -175,6 +178,7 @@ class USBRead(object):
     fd = os.open(path, os.O_RDWR)
 
     firmware = self._read_hidraw_firmware(fd, self.verbose)
+    #print(firmware[:12])
 
     # Get temperature/humidity
     os.write(fd, struct.pack('8B', 0x01, 0x80, 0x33, 0x01, 0, 0, 0, 0))
@@ -211,6 +215,13 @@ class USBRead(object):
       self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
       self._parse_bytes('external temperature', 10, 100.0, bytes, info)
       self._parse_bytes('external humidity', 12, 100.0, bytes, info)
+      return info
+
+    if info['firmware'][:12] == 'TEMPer2_V3.7':
+      info['firmware'] = info['firmware'][:12]
+      #Bytes 5-8 is the device temp, devide by 4096
+      self._parse_bytes('internal temperature', 2, 100.0, bytes, info, self.verbose)
+      self._parse_bytes('external temperature', 10, 100.0, bytes, info, self.verbose)
       return info
 
     info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
@@ -296,6 +307,8 @@ class Temper(object):
     if vendorid == 0x413d and productid == 0x2107:
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
+      return True
+    if vendorid == 0x1a86 and productid == 0xe025:
       return True
 
     # The id is not known to this program.
