@@ -50,6 +50,7 @@ TEMPer      | 0c45:7401 | TEMPerF1.4       | I    |     | Metal
 TEMPer      | 413d:2107 | TEMPerGold_V3.1  | I    |     | Metal
 TEMPerHUM   | 413d:2107 | TEMPerX_V3.1     | I    | I   | White plastic
 TEMPer2     | 413d:2107 | TEMPerX_V3.3     | I,E  |     | White plastic
+TEMPer2     | 1a86:e025 | TEMPer2_V3.7     | I,E  |     | White plastic
 TEMPer1F    | 413d:2107 | TEMPerX_V3.3     | E    |     | White plastic
 TEMPerX232  | 1a86:5523 | TEMPerX232_V2.0  | I,E  | I   | White plastic
 TEMPer1V1.1 | 0c45:7401 | TEMPer1F1.1Per1F | E    |     | Metal

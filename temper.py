@@ -206,7 +206,7 @@ class USBRead(object):
       self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
       return info
 
-    if info['firmware'][:12] in [ 'TEMPerX_V3.1', 'TEMPerX_V3.3' ]:
+    if info['firmware'][:12] in [ 'TEMPerX_V3.1', 'TEMPerX_V3.3', 'TEMPer2_V3.7' ]:
       info['firmware'] = info['firmware'][:12]
       self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
       self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
@@ -297,6 +297,8 @@ class Temper(object):
     if vendorid == 0x413d and productid == 0x2107:
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
+      return True
+    if vendorid == 0x1a86 and productid == 0xe025:
       return True
 
     # The id is not known to this program.
