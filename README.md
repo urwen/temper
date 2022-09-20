@@ -127,7 +127,7 @@ This program uses the mode where the LED is either off or solid red.
 
 ### TEMPer1F
 
-White plastic USB stick marked "TEMPer1F", "-40C - +125C"; with pink button
+White plastic or metal USB stick marked "TEMPer1F", "-40C - +125C"; with pink button
 marked "TXT'. On the reverse, "PCsensor". This model has a jack for an
 external sensor and does *not* have an internal sensor.
 
