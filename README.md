@@ -46,6 +46,7 @@ In the following table "I" means the sensor is internal to the USB stick and
 
 Product    |    Id     |  Firmware       | Temp | Hum | Notes
 -----------|-----------|-----------------|------|-----|---------------
+TEMPer     | 0c45:7401 | TEMPer1F_V1.3r1F| E    |     | Metal
 TEMPer     | 0c45:7401 | TEMPerF1.4      | I    |     | Metal
 TEMPer     | 413d:2107 | TEMPerGold_V3.1 | I    |     | Metal
 TEMPerHUM  | 413d:2107 | TEMPerX_V3.1    | I    | I   | White plastic
