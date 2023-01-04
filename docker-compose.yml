@@ -1,0 +1,11 @@
+---
+version: '3'
+
+services:
+  temper:
+    container_name: temper
+    hostname: temper
+    image: temper/service:latest
+    restart: always
+    ports:
+      - 2600:2600
