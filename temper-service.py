@@ -31,8 +31,8 @@ def list():
     result = json.dumps(t.usb_devices, indent=2, sort_keys=True)
     return result
 
-@app.route('/Stats')
-def Stats():
+@app.route('/metrics')
+def metrics():
     result = json.dumps(t.read(), indent=2)
     return result
 
