@@ -22,6 +22,9 @@ debug = args.debug
 print(f"host = {host}")
 print(f"port = {port}")
 print(f"debug = {debug}")
+print(f"Available endpoints:")
+print(f"/list = list available USB devices")
+print(f"/metrics = return availale metrics from temper USB devices")
 
 app = Flask("temper")
 t = Temper()
