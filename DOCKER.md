@@ -2,14 +2,14 @@ Running temper as a service in docker container
 ===============================================
 *The container provides the sensor metrics via web API*
 
-* Default port: `2600`
+* Default port: `2610`
 * endpoint `/list`: List available USB devices in JSON format
 * endpoint `/metrics`: Send metrics from available temper devices in JSON format
 
 Running the service as a commandline
 ------------------------------------
 ```
-docker run --rm -it -p 2600:2600 temper/service:latest
+docker run --rm -it -p 2610:2610 temper/service:latest
 ```
 
 
@@ -26,7 +26,7 @@ services:
     image: temper/service:latest
     restart: always
     ports:
-      - 2600:2600
+      - 2610:2610
 ```
 
 Running the docker as a service using docker-compose config.
