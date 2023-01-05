@@ -306,3 +306,10 @@ $ ./temper.py --json
 ```
 
 Similar JSON output can be generated with the --list option.
+
+### Docker
+The docker image is built with `temper.py` and `temper-service.py`.
+The default `ENTRYPOINT` points to `temper-service.py` which runs as web
+service listening on port 2610. The web service responds to two endpoints:
+`/list` and `/metrics`. The result is in JSON format. See [`DOCKER.md`](./DOCKER.md)
+for more details.
