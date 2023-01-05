@@ -10,7 +10,7 @@ from temper import Temper
 # parsing config
 parser = argparse.ArgumentParser()
 parser.add_argument("-H", "--host", default="0.0.0.0", help="host to bind to, default: 0.0.0.0")
-parser.add_argument("-p", "--port", default=2600, help="port to listen to, default: 2600")
+parser.add_argument("-p", "--port", default=2610, help="port to listen to, default: 2610")
 parser.add_argument("-d", "--debug", default=False, help="debug mode, default: False")
 
 args = parser.parse_args()
