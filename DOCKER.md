@@ -1,5 +1,5 @@
-Running temper as a service in docker container
-===============================================
+Running `temper.py` as a service in docker container
+====================================================
 *The container provides the sensor metrics via web API*
 
 * Default port: `2610`
@@ -34,6 +34,18 @@ Running the docker as a service using docker-compose config.
 docker-compose up -d
 ```
 
+
+Checking the service from another terminal
+------------------------------------------
+```
+# List available USB devices (including temper devices)
+http localhost:2610/list | jq -C
+
+# Query temper metrics
+http localhost:2610/metrics | jq -C 
+```
+
+
 Running the script `temper.py` from docker container
 ----------------------------------------------------
 You can run `temper.py` as a docker container by overriding the entrypoint.
@@ -52,4 +64,4 @@ options:
   --verbose             Output binary data from thermometer
 ```
 
-Note: This dockerization effort was sponsored by Greenfly SAU LLC.
+**Note:** This dockerization effort was sponsored by Greenfly SAU LLC.
