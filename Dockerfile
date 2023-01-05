@@ -17,7 +17,7 @@ RUN mkdir -p /opt/temper/bin
 COPY temper.py /opt/temper/bin
 COPY temper-service.py /opt/temper/bin
 
-EXPOSE 2600
+EXPOSE 2610
 
 WORKDIR /opt/temper/bin
 # This is used at commandline such as
