@@ -8,4 +8,5 @@ services:
     image: temper/service:latest
     restart: always
     ports:
-      - 2600:2600
+      - 2610:2610
+    privileged: true
