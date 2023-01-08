@@ -64,4 +64,6 @@ options:
   --verbose             Output binary data from thermometer
 ```
 
-**Note:** This dockerization effort was sponsored by Greenfly SAU LLC.
+**Note:** This dockerization effort was sponsored by [Greenfly SAU LLC.][0]
+
+[0]: https://greenfly.io
