@@ -5,7 +5,7 @@ import json
 
 from flask import Flask
 
-from temper import Temper
+from temper import Temper, USBList
 
 # parsing config
 parser = argparse.ArgumentParser()
@@ -31,11 +31,19 @@ t = Temper()
 
 @app.route('/list')
 def list():
+    # re-read USB list in case we have new plugged in device(s)
+    usblist = USBList()
+    t.usb_devices = usblist.get_usb_devices()
+
     result = json.dumps(t.usb_devices, indent=2, sort_keys=True)
     return result
 
 @app.route('/metrics')
 def metrics():
+    # re-read USB list in case we have new plugged in device(s)
+    usblist = USBList()
+    t.usb_devices = usblist.get_usb_devices()
+
     result = json.dumps(t.read(), indent=2)
     return result
 
