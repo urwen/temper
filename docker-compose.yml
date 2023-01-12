@@ -6,6 +6,8 @@ services:
     container_name: temper
     hostname: temper
     image: temper/service:latest
+    volumes:
+      - /dev:/dev
     restart: always
     ports:
       - 2610:2610
