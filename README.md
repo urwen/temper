@@ -8,9 +8,12 @@ EBay.
 ## Note
 
 NOTE: Please submit all pull requests to https://github.com/ccwienk/temper
+
 The repository at https://github.com/urwen/temper is not well maintained.
-Pham has rebased to ccwienk/temper and encourages you to support Christian
-Cwienk's efforts to maintain temper -- with Pham's profound thanks and gratitude!
+
+urwen has rebased to ccwienk/temper and encourages you to support Christian
+Cwienk's efforts to maintain temper -- with urwen's profound thanks and
+gratitude!
 
 ## Design
 
