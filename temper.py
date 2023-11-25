@@ -213,6 +213,23 @@ class USBRead(object):
       self._parse_bytes('external humidity', 12, 100.0, bytes, info)
       return info
 
+    if info['firmware'][:16] == 'TEMPer1F_H1V1.5F':
+      info['firmware'] = info['firmware'][:16]
+      self._parse_bytes('internal temperature', 2, 1, bytes, info, verbose=self.verbose)
+      self._parse_bytes('internal humidity', 4, 1, bytes, info, verbose=self.verbose)
+      # The values are not aligned to the byte boundary, so shift them. And
+      # then apply the equations from the SHT20 data sheet.
+      t = int(info['internal temperature']) << 2
+      if self.verbose:
+        print(f'Raw temperature: {t}')
+      t = -46.85 + 175.72 * t / 65536
+      info['internal temperature'] = t
+      h = int(info['internal humidity']) << 4
+      if self.verbose:
+        print(f'Raw humidity: {h}')
+      h = -6 + 125.0 * h / 65536
+      info['internal humidity'] = h
+      return info
     info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
                                                  binascii.hexlify(bytes))
     return info
@@ -291,7 +308,7 @@ class Temper(object):
         return True
       return False
 
-    if vendorid == 0x0c45 and productid == 0x7401:
+    if vendorid == 0x0c45 and (productid == 0x7401 or productid == 0x7402):
       return True
     if vendorid == 0x413d and productid == 0x2107:
       return True
