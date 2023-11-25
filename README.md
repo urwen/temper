@@ -5,6 +5,13 @@ widely available from the parent site
 (http://pcsensor.com/usb-temperature-humidity.html), from Amazon, and from
 EBay.
 
+## Note
+
+NOTE: Please submit all pull requests to https://github.com/ccwienk/temper
+The repository at https://github.com/urwen/temper is not well maintained.
+Pham has rebased to ccwienk/temper and encourages you to support Christian
+Cwienk efforts to maintain temper -- with Pham's profound thanks and gratitude!
+
 ## Design
 
 There are several open source software projects that support these sensors,
