@@ -63,6 +63,7 @@ TEMPer      | 1a86:e025 | TEMPerGold_V3.3  | I    |     | Metal
 TEMPer      | 1a86:e025 | TEMPerGold_V3.4  | I    |     | Metal
 TEMPerHUM   | 413d:2107 | TEMPerX_V3.1     | I    | I   | White plastic
 TEMPerHUM   | 1a86:e025 | TEMPerHUM_3.9    |      | I   | White plastic with blue button
+TEMPerHUM   | 0c45:7402 | TEMPer1F_H1V1.5F | I    | I   | White plastic with blue button
 TEMPer2     | 413d:2107 | TEMPerX_V3.3     | I,E  |     | White plastic
 TEMPer2     | 1a86:e025 | TEMPer2_V3.7     | I,E  |     | White plastic with red button
 TEMPer2     | 1a86:e025 | TEMPer2_V3.9     | I,E  |     | White plastic with red button
