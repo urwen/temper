@@ -29,6 +29,7 @@ import re
 import select
 import struct
 import sys
+import random
 
 # Non-standard modules
 try:
@@ -39,14 +40,15 @@ except ImportError:
 
 try:
   import paho.mqtt.client as mqtt
+  import paho.mqtt.enums
 except ImportError:
   print('Cannot import "paho.mqtt.client".  Please run pip3 install paho.mqtt')
   sys.exit(1)
 
-MQTT_HOST = "CHANGEME"
+MQTT_HOST = "localhost"
 MQTT_PORT = 1883
 MQTT_KEEPALIVE_INTERVAL = 45
-MQTT_TOPIC = "CHANGEME"
+MQTT_TOPIC = "mechanicalroom"
 
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
@@ -228,7 +230,8 @@ class USBRead(object):
       self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
       self._parse_bytes('external temperature', 10, 100.0, bytes, info)
       self._parse_bytes('external humidity', 12, 100.0, bytes, info)
-      mqttc = mqtt.Client()
+      client_id = f'python-mqtt-{random.randint(0, 1000)}'
+      mqttc = mqtt.Client(paho.mqtt.enums.CallbackAPIVersion.VERSION2, client_id)
       mqttc.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
       mqttc.publish(MQTT_TOPIC + "/humidity",str(info['internal humidity']), qos=0, retain=True)
       mqttc.publish(MQTT_TOPIC + "/temperature",str(round(info['internal temperature'] * 1.8 + 32, 2)), qos=0, retain=True)
