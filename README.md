@@ -67,6 +67,7 @@ TEMPerHUM   | 0c45:7402 | TEMPer1F_H1V1.5F | I    | I   | White plastic with blu
 TEMPer2     | 413d:2107 | TEMPerX_V3.3     | I,E  |     | White plastic
 TEMPer2     | 1a86:e025 | TEMPer2_V3.7     | I,E  |     | White plastic with red button
 TEMPer2     | 1a86:e025 | TEMPer2_V3.9     | I,E  |     | White plastic with red button
+TEMPer2     | 3553:a001 | TEMPer2_V4.1     | I,E  |     | White plastic with red button
 TEMPer2     | 1a86:e025 | TEMPer2_M12_V1.3 | I,E  |     | White plastic with red button
 TEMPer1F    | 413d:2107 | TEMPerX_V3.3     | E    |     | White plastic
 TEMPerX232  | 1a86:5523 | TEMPerX232_V2.0  | I,E  | I   | White plastic
